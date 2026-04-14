@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Notify from '$lib/Notify.svelte';
 	import Sidebar from '$lib/Sidebar.svelte';
-	import { connectedAccount, getKibisisClient, isKibisisInstalled, walletConnect } from '$lib/UseWallet.svelte';
+	import { connectedAccount, detectAlgoVoi, getKibisisClient, isAlgoVoiInstalled, isKibisisInstalled, walletConnect } from '$lib/UseWallet.svelte';
 	import { pageContentRefreshPending } from '$lib/utils';
 	import QRCodeIcon from 'svelte-star/dist/io/IoMdQrScanner.svelte';
 	import '$lib/stores/onchain';
@@ -17,6 +17,7 @@
 		} catch (e) {
 			//
 		}
+		isAlgoVoiInstalled.set(detectAlgoVoi());
 		getListOfArc200Tokens();
 	});
 </script>
@@ -40,7 +41,12 @@
 							<button class="btn btn-ghost" on:click={() => walletConnect()}>
 								<span class="block h-6"><QRCodeIcon /></span> Wallet Connect
 							</button>
-							{#if $isKibisisInstalled}
+							{#if $isAlgoVoiInstalled}
+						<button class="btn btn-ghost flex justify-start" on:click={() => walletConnect(false, true)}>
+							<span class="block h-6 font-bold text-base">AV</span> AlgoVoi Wallet
+						</button>
+					{/if}
+					{#if $isKibisisInstalled}
 								<button class="btn btn-ghost flex justify-start" on:click={() => walletConnect(true)}>
 									<span class="block h-6">
 										<svg width="24" height="24" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">

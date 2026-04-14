@@ -5,13 +5,22 @@
 
 	export const deflyWallet = new WalletConnector({});
 	export const connectedAccount = writable<string>();
-	export const connectedWallet = writable<'wc' | 'kibisis'>();
+	export const connectedWallet = writable<'wc' | 'kibisis' | 'algovoi'>();
 	export const isKibisisInstalled = writable(false);
+	export const isAlgoVoiInstalled = writable(false);
 
 	connectedWallet.subscribe((walletType) => {
 		if (!browser || !walletType) return;
 		localStorage.setItem('defaultWallet', walletType);
 	});
+
+	export const detectAlgoVoi = (): boolean => {
+		return typeof window !== 'undefined' && !!(window as any).algorand?.isAlgoVoi;
+	};
+
+	export const detectAlgoVoi = (): boolean => {
+		return typeof window !== 'undefined' && !!(window as any).algorand?.isAlgoVoi;
+	};
 
 	export const getKibisisClient = async () => {
 		let count = 0;
@@ -32,6 +41,8 @@
 		if (get(connectedWallet) === 'kibisis') {
 			const client = await getKibisisClient();
 			await client?.disconnect();
+		} else if (get(connectedWallet) === 'algovoi') {
+			// ARC-27 has no explicit disconnect
 		} else {
 			await deflyWallet.disconnect();
 		}
@@ -41,9 +52,18 @@
 	}
 
 	export async function walletConnect(
-		isKibisis = browser ? localStorage.getItem('defaultWallet') === 'kibisis' : false
+		isKibisis = browser ? localStorage.getItem('defaultWallet') === 'kibisis' : false,
+		isAlgoVoi = browser ? localStorage.getItem('defaultWallet') === 'algovoi' : false
 	) {
-		if (isKibisis) {
+		if (isAlgoVoi) {
+			const provider = (window as any).algorand;
+			if (!provider?.isAlgoVoi) throw new Error('AlgoVoi extension not detected');
+			const result = await provider.enable({});
+			const address = result?.accounts?.[0]?.address ?? result?.accounts?.[0];
+			if (!address) throw new Error('No accounts returned from AlgoVoi');
+			connectedAccount.set(address);
+			connectedWallet.set('algovoi');
+		} else if (isKibisis) {
 			const client = await getKibisisClient();
 			const wallet = await client?.connect(() => {
 				connectedAccount.set('');
@@ -62,8 +82,19 @@
 		txnGroups: algosdk.Transaction[][],
 		kibisis = get(connectedWallet) === 'kibisis'
 	) {
+		const isAlgoVoi = get(connectedWallet) === 'algovoi';
 		try {
-			if (kibisis) {
+			if (isAlgoVoi) {
+				const provider = (window as any).algorand;
+				const account = get(connectedAccount);
+				const signed: Uint8Array[] = [];
+				for (const group of txnGroups) {
+					const txns = group.map((txn) => ({ txn: Buffer.from(algosdk.encodeUnsignedTransaction(txn)).toString('base64'), signers: [account] }));
+					const result = await provider.signTxns(txns);
+					signed.push(...(result as (string|null)[]).map((s) => s ? Buffer.from(s, 'base64') : null).filter(Boolean) as Uint8Array[]);
+				}
+				return signed;
+			} else if (kibisis) {
 				const signed: Uint8Array[] = [];
 				const client = await getKibisisClient();
 				for (const group of txnGroups) {
@@ -178,6 +209,8 @@
 					$connectedWallet = 'wc';
 				} else if (defaultWallet === 'kibisis') {
 					walletConnect(true);
+				} else if (defaultWallet === 'algovoi') {
+					walletConnect(false, true);
 				}
 			}
 		}
