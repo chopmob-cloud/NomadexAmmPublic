@@ -18,10 +18,6 @@
 		return typeof window !== 'undefined' && !!(window as any).algorand?.isAlgoVoi;
 	};
 
-	export const detectAlgoVoi = (): boolean => {
-		return typeof window !== 'undefined' && !!(window as any).algorand?.isAlgoVoi;
-	};
-
 	export const getKibisisClient = async () => {
 		let count = 0;
 		while (count++ < 3) {
